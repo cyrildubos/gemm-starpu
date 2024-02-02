@@ -13,4 +13,4 @@ else (STARPU_FOUND)
     message(FATAL_ERROR "StarPU not found")
 endif()
 
-add_executable(template_starpu src/main.c)
+add_executable(template_starpu src/main.cpp)
