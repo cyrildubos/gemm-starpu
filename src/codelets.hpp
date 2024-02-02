@@ -4,38 +4,39 @@
 
 #include "kernels.hpp"
 
-#define FILL_VALUE_CODELET(TYPE)                                               \
-  (starpu_codelet{.where = STARPU_CPU,                                         \
-                  .cpu_func = {fill_value_cpu<TYPE>},                          \
-                  .nbuffers = 1,                                               \
-                  .modes = {starpu_data_access_mode(STARPU_W)}})
+template <typename DataType> starpu_codelet fill_value_codelet() {
+  return {.where = STARPU_CPU,
+          .cpu_func = {fill_value_cpu<DataType>},
+          .nbuffers = 1,
+          .modes = {STARPU_W}};
+}
 
-#define GEMM_1D_CODELET(TYPE)                                                  \
-  (starpu_codelet{.where = STARPU_CPU,                                         \
-                  .cpu_funcs = {gemm_cpu<TYPE>},                               \
-                  .nbuffers = 3,                                               \
-                  .modes = {starpu_data_access_mode(STARPU_R),                 \
-                            starpu_data_access_mode(STARPU_R),                 \
-                            starpu_data_access_mode(STARPU_RW)}})
+template <typename DataType> starpu_codelet gemm_1d_codelet() {
+  return {.where = STARPU_CPU,
+          .cpu_funcs = {gemm_cpu<DataType>},
+          .nbuffers = 3,
+          .modes = {STARPU_R, STARPU_R, STARPU_RW}};
+}
 
-#define GEMM_2D_CODELET(TYPE)                                                  \
-  (starpu_codelet{.where = STARPU_CPU,                                         \
-                  .cpu_funcs = {gemm_cpu<TYPE>},                               \
-                  .nbuffers = 3,                                               \
-                  .modes = {starpu_data_access_mode(STARPU_R),                 \
-                            starpu_data_access_mode(STARPU_R),                 \
-                            starpu_data_access_mode(STARPU_REDUX)}})
+template <typename DataType> starpu_codelet gemm_2d_codelet() {
+  return {.where = STARPU_CPU,
+          .cpu_funcs = {gemm_cpu<DataType>},
+          .nbuffers = 3,
+          .modes = {STARPU_R, STARPU_R, STARPU_REDUX}};
+}
 
-#define GEMM_REDUCTION_CODELET(TYPE)                                           \
-  (starpu_codelet{                                                             \
-      .where = STARPU_CPU,                                                     \
-      .cpu_funcs = {gemm_reduction_cpu<TYPE>},                                 \
-      .nbuffers = 2,                                                           \
-      .modes = {starpu_data_access_mode(STARPU_RW | STARPU_COMMUTE),           \
-                starpu_data_access_mode(STARPU_R)}})
+template <typename DataType> starpu_codelet gemm_2d_reduction_codelet() {
+  return {.where = STARPU_CPU,
+          .cpu_funcs = {gemm_2d_reduction_cpu<DataType>},
+          .nbuffers = 2,
+          .modes = {
+              static_cast<starpu_data_access_mode>(STARPU_RW | STARPU_COMMUTE),
+              STARPU_R}};
+}
 
-#define GEMM_INITIALIZATION_CODELET(TYPE)                                      \
-  (starpu_codelet{.where = STARPU_CPU,                                         \
-                  .cpu_funcs = {gemm_initialization_cpu<TYPE>},                \
-                  .nbuffers = 1,                                               \
-                  .modes = {starpu_data_access_mode(STARPU_W)}})
+template <typename DataType> starpu_codelet gemm_2d_initialization_codelet() {
+  return {.where = STARPU_CPU,
+          .cpu_funcs = {gemm_2d_initialization_cpu<DataType>},
+          .nbuffers = 1,
+          .modes = {STARPU_W}};
+}

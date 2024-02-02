@@ -16,8 +16,8 @@ void fill_value_cpu(void *buffers[], void *arguments) {
   std::cout << "INFO\tfill_value_cpu: u = " << u << ", v = " << v
             << ", value = " << value << '\n';
 
-  for (auto x = 0u; x < u; ++x)
-    for (auto y = 0u; y < v; ++y)
+  for (auto x = 0; x < u; ++x)
+    for (auto y = 0; y < v; ++y)
       a[x + y * u] = value;
 }
 
@@ -55,11 +55,11 @@ template <typename DataType> void gemm_cpu(void *buffers[], void *arguments) {
   std::cout << "INFO\tgemm_cpu: u = " << u << ", v = " << v << ", w = " << w
             << ", alpha = " << alpha << ", beta = " << beta << '\n';
 
-  for (auto x = 0u; x < u; ++x) {
-    for (auto y = 0u; y < v; ++y) {
+  for (auto x = 0; x < u; ++x) {
+    for (auto y = 0; y < v; ++y) {
       auto value = beta * c[x + y * u];
 
-      for (auto z = 0u; z < w; ++z)
+      for (auto z = 0; z < w; ++z)
         value += alpha * a[x + z * u] * b[z + y * w];
 
       c[x + y * u] = value;
@@ -72,7 +72,7 @@ template <typename DataType> void gemm_cpu(void *buffers[], void *arguments) {
 //  * pour le fonctionnement des STARPU_REDUX handles
 //  */
 template <typename DataType>
-void gemm_reduction_cpu(void *buffers[], void *arguments) {
+void gemm_2d_reduction_cpu(void *buffers[], void *arguments) {
   auto a = (DataType *)STARPU_MATRIX_GET_PTR(buffers[0]);
   auto b = (DataType *)STARPU_MATRIX_GET_PTR(buffers[1]);
 
@@ -85,24 +85,24 @@ void gemm_reduction_cpu(void *buffers[], void *arguments) {
     throw(std::runtime_error(
         "REDUCTION IMPOSSIBLE: les buffers ne font pas la même tailles"));
 
-  std::cout << "INFO\tgemm_reduction_cpu\n";
+  std::cout << "INFO\tgemm_2d_reduction_cpu\n";
 
-  for (auto x = 0u; x < a_u; ++x)
-    for (auto y = 0u; y < a_v; ++y)
+  for (auto x = 0; x < a_u; ++x)
+    for (auto y = 0; y < a_v; ++y)
       a[x + y * a_u] += b[x + y * a_u];
 }
 
 // TODO: use fill_value_cpu instead?
 template <typename DataType>
-void gemm_initialization_cpu(void *buffers[], void *arguments) {
+void gemm_2d_initialization_cpu(void *buffers[], void *arguments) {
   auto a = (DataType *)STARPU_MATRIX_GET_PTR(*buffers);
 
   auto u = STARPU_MATRIX_GET_NY(*buffers);
   auto v = STARPU_MATRIX_GET_NX(*buffers);
 
-  std::cout << "INFO\tgemm_initialization_cpu\n";
+  std::cout << "INFO\tgemm_2d_initialization_cpu\n";
 
-  for (auto x = 0u; x < u; ++x)
-    for (auto y = 0u; y < v; ++y)
+  for (auto x = 0; x < u; ++x)
+    for (auto y = 0; y < v; ++y)
       a[x + y * u] = static_cast<DataType>(0);
 }

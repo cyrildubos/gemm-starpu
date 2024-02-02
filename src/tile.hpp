@@ -21,27 +21,8 @@ public:
     starpu_malloc((void **)&data, u * v * sizeof(DataType));
 
     // TODO: u, v, u?
-    starpu_matrix_data_register(&handle, STARPU_MAIN_RAM, (uintptr_t)data, v, v,
-                                u, sizeof(DataType));
-  }
-
-  // TODO: change to a real destroyer
-  void destroy() {
-    starpu_data_unregister(handle);
-
-    // starpu_free(data);
-  }
-
-  void fill_value(const DataType value) {
-    auto codelet = FILL_VALUE_CODELET(DataType);
-
-    starpu_task_insert(&codelet,             //
-                       STARPU_W, handle,     //
-                       STARPU_VALUE, &value, //
-                       sizeof(DataType),     //
-                       0);                   //
-
-    starpu_task_wait_for_all(); // TODO
+    starpu_matrix_data_register(&handle, STARPU_MAIN_RAM, (uintptr_t)data, //
+                                v, v, u, sizeof(DataType));                //
   }
 
   void fill_random(); // TODO
@@ -53,8 +34,8 @@ public:
     starpu_data_acquire(handle, STARPU_R);
     starpu_data_acquire(other.handle, STARPU_R);
 
-    for (auto x = 0u; x < u; ++x)
-      for (auto y = 0u; y < v; ++y)
+    for (auto x = 0; x < u; ++x)
+      for (auto y = 0; y < v; ++y)
         if (data[x + y * u] != other.data[x + y * u])
           throw(std::runtime_error("different tile values"));
 
@@ -64,7 +45,7 @@ public:
 
   static void gemm_1d(const DataType alpha, const Tile &a, const Tile &b,
                       const DataType beta, Tile &c) {
-    auto codelet = GEMM_1D_CODELET(DataType);
+    auto codelet = gemm_1d_codelet<DataType>();
 
     starpu_task_insert(&codelet,             //
                        STARPU_R, a.handle,   //

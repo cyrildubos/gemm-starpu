@@ -5,6 +5,20 @@
 
 #include "tile.hpp"
 
+// -----
+
+static int copy_handle(starpu_data_handle_t dst, starpu_data_handle_t src,
+                       unsigned nb) {
+  unsigned block;
+
+  for (block = 0; block < nb; block++)
+    starpu_data_cpy(starpu_data_get_sub_data(dst, 1, block),
+                    starpu_data_get_sub_data(src, 1, block), 1, NULL, NULL);
+  return 0;
+}
+
+// -----
+
 /**
  * The matrix contains the tiles and operates on them
  * (TER PART 2) In the distributed case the distribution of tiles among nodes
@@ -21,8 +35,8 @@ template <typename DataType> struct Matrix {
 
   Matrix(unsigned m, unsigned n, unsigned u, unsigned v)
       : m{m}, n{n}, u{u}, v{v} {
-    for (auto i = 0u; i < m; i += u)
-      for (auto j = 0u; j < n; j += v)
+    for (auto i = 0; i < m; i += u)
+      for (auto j = 0; j < n; j += v)
         tiles.push_back(Tile<DataType>(u, v));
 
     std::cout << "INFO\t" << m << 'x' << n << " matrix with " << u << 'x' << v
@@ -31,7 +45,7 @@ template <typename DataType> struct Matrix {
 
   ~Matrix() {
     for (auto &tile : tiles)
-      tile.destroy();
+      starpu_data_unregister(tile.handle);
   }
 
   /**
@@ -42,8 +56,8 @@ template <typename DataType> struct Matrix {
     for (auto &tile : tiles)
       starpu_data_acquire(tile.handle, STARPU_R);
 
-    for (auto i = 0u; i < m; ++i) {
-      for (auto j = 0u; j < n; ++j)
+    for (auto i = 0; i < m; ++i) {
+      for (auto j = 0; j < n; ++j)
         std::cout << tiles[(i / u) + (j / v) * (m / u)].data[i % u, j % v]
                   << ' ';
 
@@ -55,8 +69,16 @@ template <typename DataType> struct Matrix {
   }
 
   void fill_value(const DataType value) {
+    auto codelet = fill_value_codelet<DataType>();
+
     for (auto &tile : tiles)
-      tile.fill_value(value);
+      starpu_task_insert(&codelet,              //
+                         STARPU_W, tile.handle, //
+                         STARPU_VALUE, &value,  //
+                         sizeof(DataType),      //
+                         0);                    //
+
+    starpu_task_wait_for_all(); // TODO
   }
 
   void fill_random();
@@ -74,6 +96,7 @@ template <typename DataType> struct Matrix {
       throw(std::runtime_error("different tile size"));
 
     auto iterator = other.tiles.cbegin();
+
     for (auto &tile : tiles)
       tile.assert_equals(*iterator++);
   }
@@ -86,21 +109,26 @@ template <typename DataType> struct Matrix {
    */
   static void gemm_1d(const DataType alpha, const Matrix &a, const Matrix &b,
                       const DataType beta, Matrix &c) {
-    for (auto x = 0u; x < (a.m / a.u); ++x)
-      for (auto y = 0u; y < (b.n / b.v); ++y)
+    for (auto x = 0; x < (a.m / a.u); ++x)
+      for (auto y = 0; y < (b.n / b.v); ++y)
         Tile<DataType>::gemm_1d(alpha, a.tiles[x], b.tiles[y], beta,
                                 c.tiles[x + y * (a.m / a.u)]);
   }
 
   static void gemm_2d(const DataType alpha, const Matrix &a, const Matrix &b,
                       const DataType beta, Matrix &c) {
-    auto codelet = GEMM_2D_CODELET(DataType);
-    auto reduction = GEMM_REDUCTION_CODELET(DataType);
-    auto initialization = GEMM_INITIALIZATION_CODELET(DataType);
+    auto codelet = gemm_2d_codelet<DataType>();
 
-    for (auto x = 0u; x < (a.m / a.u); x++)
-      for (auto y = 0u; y < (b.n / b.v); y++)
-        for (auto z = 0u; z < (a.n / a.v); z++) {
+    auto reduction = gemm_2d_reduction_codelet<DataType>();
+    auto initialization = gemm_2d_initialization_codelet<DataType>();
+
+    for (auto x = 0; x < (a.m / a.u); x++)
+      for (auto y = 0; y < (b.n / b.v); y++)
+
+        for (auto z = 0; z < (a.n / a.v); z++) {
+          std::cout << "INFO\tgemm_2d: x = " << x << ", y = " << y
+                    << ", z = " << z << '\n';
+
           auto a_index = x + z * (a.m / a.u);
           auto b_index = z + y * (b.m / b.u);
           auto c_index = x + y * (c.m / c.u);
@@ -120,5 +148,7 @@ template <typename DataType> struct Matrix {
                              sizeof(DataType),                      //
                              0);                                    //
         }
+
+    starpu_task_wait_for_all();
   }
 };
